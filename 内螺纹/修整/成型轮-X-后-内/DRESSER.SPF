@@ -3,28 +3,11 @@ PROC DRESSER  DISPLOF(REAL DR0,DRAL DR1,REAL DR2,DRAL DR3,REAL DR4,DRAL DR5,REAL
 ;内螺纹-成型轮-X-前-修整程序
 ;;***************************
 ;DR0-砂轮当前直径;DR1-粗修次数;DR2-粗修进给;DR3-粗修速度;DR4-精修次数;DR5-精修进给;DR6-精修速度;DR7-砂轮线速度
-DRESSER[23]=0
 WHILE((DRESSER[1]-2*(DR1*DR2+DR4*DR5))<=DRESSER[3]);判断砂轮是否可用
     MSG("砂轮过小，请跟换砂轮!!!")
     M0
 ENDWHILE
 GOTOF END
-BEGAIN:
-    POSITION[0]=POSITION[0]-DRESSER[19]
-    G90 G01 X=POSITION[0] F=DRESSER[20]
-    G04 F=DRESSER[16]
-    G91 G01 X=0.1 F=DRESSER[20]
-    DRESSER[1]=DRESSER[1]-2*DRESSER[19];计算当前砂轮直径
-    POSITION[1]=POSITION[1]-DRESSER[19];计算磨削接触点坐标
-    DRESSER[22]=DRESSER[22]+1
-    DRESSER[23]=DRESSER[23]+1
-    DRESSER[7]=1;将砂轮标记为旧砂轮
-    IF DRESSER[23]>=20
-        ;砂轮启动
-        DRESSER[23]=0
-        G04 F=1.5
-    ENDIF
-END:
 ;砂轮启动
 ;金刚轮启动
 POSITION[0]=POSITION[5]+DRESSER[1]/2;依据当前砂轮直径,计算修整接触点坐标
@@ -33,42 +16,32 @@ G90 G01 X=POSITION[0]+1 F=3500;X轴快速移动到修整接触点前1mm处
 G90 G01 X=POSITION[0]+0.1 F=200;X轴慢速移动到修整接触点前0.1mm处
 M28;修整冷却启动
 G04 F1
-;;;轮廓修整
-    IF (DRESSER[1]>DRESSER[2]);如果当前砂轮直径大于砂轮最大磨削直径
-        WHILE(DRESSER[1]>DRESSER[2])
-            IF((DRESSER[1]-0.4)>DRESSER[2]);如果当前砂轮直径大于最大砂轮磨削直径0.4mm
-                DRESSER[19]=DR2
-                DRESSER[20]=DR3
-            ELSE
-                IF((DRESSER[1]-DRESSER[2])>=2*DR5);如果当前砂轮直径大于最大砂轮磨削直径2倍的精修进刀量
-                    DRESSER[19]=DR5
-                ELSE
-                    DRESSER[19]=(DRESSER[1]-DRESSER[2])/2
-                ENDIF
-                DRESSER[20]=DR6
-            ENDIF
-            MSG("当前砂轮直径"<<DRESSER[1]<<"mm,当前修整进给量"<<DRESSER[19]<<"mm,剩余:"<<DRESSER[1]-DRESSER[2]-2*DRESSER[19]<<"mm")
-            REPEAT BEGIN END 
-        ENDWHILE
-        GOTOF END_DRESSER
+DRESSER[22]=0;当前修整次数清0
+LABLE_0：
+;粗修
+    DRESSER[19]=DR2
+    DRESSER[20]=DR3
+IF DRESSER[22]>=DR2;粗修次数已到
+    DRESSER[19]=DR5
+    DRESSER[20]=DR6
+ENDIF
+    POSITION[0]=POSITION[0]-DRESSER[19]
+    G90 G01 X=POSITION[0] F=DRESSER[20]
+    G04 F=DRESSER[16]
+    G91 G01 X=0.1 F=DRESSER[20]
+    DRESSER[1]=DRESSER[1]-2*DRESSER[19];计算当前砂轮直径
+    POSITION[1]=POSITION[1]-DRESSER[19];计算磨削接触点坐标
+    DRESSER[22]=DRESSER[22]+1
+    DRESSER[7]=1;将砂轮标记为旧砂轮
+    IF DRESSER[23]>=20
+        ;砂轮启动
+        DRESSER[23]=0
+        G04 F=1.5
     ENDIF
-;;;粗修
-    DRESSER[22]=0
-    WHILE(DRESSER[22]<DR1);当前修整次数小于粗修次数
-        DRESSER[19]=DR2
-        DRESSER[20]=DR3
-        MSG("粗修整中-->正在进行第"<<DRESSER[22]+1<<"次,还剩"<<DR1-DRESSER[22]-1<<"次完成,进给量:"<<DRESSER[19]<<"mm")
-        REPEAT BEGIN END 
-    ENDIF
-;;;精修
-    DRESSER[22]=0
-    WHILE(DRESSER[22]<DR4);当前修整次数小于精修次数
-        DRESSER[19]=DR5
-        DRESSER[20]=DR6
-        MSG("精修整中-->正在进行第"<<DRESSER[22]+1<<"次,还剩"<<DR4-DRESSER[22]-1<<"次完成,进给量:"<<DRESSER[19]<<"mm")
-        REPEAT BEGIN END 
-    ENDIF
-END_DRESSER:
+IF(DRESSER[22]<(DR1+DR4))
+    GOTOB LABLE_0：
+ENDIF
+
 G90 G01 X=POSITION[2]+10 F3500;砂轮离开滚轮10mm
 M29;关闭修整冷却
 ;金刚轮停止
